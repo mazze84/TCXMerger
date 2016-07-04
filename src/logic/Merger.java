@@ -1,4 +1,4 @@
-package Logic;
+package logic;
 
 import java.io.File;
 import java.io.IOException;
@@ -25,13 +25,11 @@ public class Merger {
 	private Document connectDoc;
 	private Document runtasticDoc;
 
-	DocumentBuilderFactory factory;
-
 	public enum GarminXML {
 
 		ACTIVITIES("Activities"), ACTIVITY("Activity"), LAP("Lap"), TRACK("Track"), TRACKPOINT("Trackpoint"), TIME(
-				"Time"), MAX_HEARTRATE("MaximumHeartRateBpm"), AVG_HEARTRATE(
-						"AverageHeartRateBpm"), HEARTRATE("HeartRateBpm"), CALORIES("Calories");
+				"Time"), MAX_HEARTRATE("MaximumHeartRateBpm"), AVG_HEARTRATE("AverageHeartRateBpm"), HEARTRATE(
+						"HeartRateBpm"), CALORIES("Calories"), DISTANCE("DistanceMeters");
 
 		private String xmlElement;
 
@@ -49,10 +47,21 @@ public class Merger {
 		this.connect = connect;
 		this.runtastic = runtastic;
 
-		this.factory = DocumentBuilderFactory.newInstance();
-		DocumentBuilder builder = factory.newDocumentBuilder();
+		DocumentBuilder builder = DocumentBuilderFactory.newInstance().newDocumentBuilder();
 		this.connectDoc = builder.parse(this.connect);
 		this.runtasticDoc = builder.parse(this.runtastic);
+	}
+
+	private Node getSubNode(Node parrent, String nodeName) {
+		if (parrent.hasChildNodes()) {
+			NodeList childNodes = parrent.getChildNodes();
+			for (int index = 0; index < childNodes.getLength(); index++) {
+				if (childNodes.item(index).getNodeName().equals(nodeName)) {
+					return childNodes.item(index);
+				}
+			}
+		}
+		return null;
 	}
 
 	/**
@@ -62,37 +71,36 @@ public class Merger {
 	 *            the tracklist of the connect tcx file
 	 * @param runtastic
 	 *            the tracklist of the runtastic tcx file
-	 * @return Returns the merged NodeList
 	 */
-	public NodeList merge(NodeList connect, NodeList runtastic) {
+	public void merge(NodeList connect, NodeList runtastic) {
 		int runtasticLength = runtastic.getLength();
 
 		int index = 0;
 		for (Node connectNode = connect.item(0); connectNode != null; connectNode = connectNode.getNextSibling()) {
 
-			Node timeConnect = connectNode.getChildNodes().item(1);
-			if (timeConnect != null && timeConnect.getNodeName().equals(GarminXML.TIME.getElementName())) {
+			Node timeConnect = getSubNode(connectNode, GarminXML.TIME.getElementName());
+			if (timeConnect != null) {
 
 				for (; index < runtasticLength; index++) {
-					Node runtasticNode = runtasticNode = runtastic.item(index);
+					Node runtasticNode = runtastic.item(index);
 
-					Node timeRuntastic = runtasticNode.getChildNodes().item(1);
+					Node timeRuntastic = getSubNode(runtasticNode, GarminXML.TIME.getElementName());
 
-					if (timeRuntastic != null && timeRuntastic.getNodeName().equals(GarminXML.TIME.getElementName())) {
-
+					if (timeRuntastic != null) {
+						String value = timeConnect.getNodeValue();
 						int isPrior = checkTime(timeConnect.getTextContent(), timeRuntastic.getTextContent());
 						System.out.println(timeConnect.getTextContent() + " " + timeRuntastic.getTextContent());
 
 						if (isPrior == 1) {
-							// TODO: append node prior to other node
+							// append node prior to other node
 							Node newClone = runtasticNode.cloneNode(true);
 							connectNode.getOwnerDocument().adoptNode(newClone);
 							connectNode.getParentNode().insertBefore(newClone, connectNode);
 						} else if (isPrior == 0) {
-							// TODO: merge node into other node
+							// merge node into other node
 							mergeInto(connectNode, runtasticNode);
 						} else {
-							// ToDO: jump to next node
+							// jump to next node
 							break;
 						}
 
@@ -102,9 +110,17 @@ public class Merger {
 
 		}
 
-		// TODO: return the merged NodeList
-		return connect;
+	}
 
+	public void removeZeroSpeed(NodeList nodeList) {
+		for (int index = 0; index < nodeList.getLength(); index++) {
+			Node distance = getSubNode(nodeList.item(index), GarminXML.DISTANCE.getElementName());
+			if (distance != null) {
+				if (Double.parseDouble(distance.getTextContent()) == 0.0) {
+					nodeList.item(index).removeChild(distance);
+				}
+			}
+		}
 	}
 
 	private boolean isElement(String element, String[] list) {
@@ -117,11 +133,12 @@ public class Merger {
 		return false;
 	}
 
-	private void mergeInto(Node node, Node toInsert) {
+	private void mergeInto(Node parrent, Node toInsert) {
 		NodeList toInsertChilds = toInsert.getChildNodes();
-		// TODO: check if the same child elements are already existant
-		// do not add the same elements twice
-		NodeList nodeChilds = node.getChildNodes();
+		// TODO: check if the same child element is already existent
+		// do not add the existing element
+
+		NodeList nodeChilds = parrent.getChildNodes();
 		String[] childNames = new String[nodeChilds.getLength()];
 		for (int index = 0; index < nodeChilds.getLength(); index++) {
 			childNames[index] = nodeChilds.item(index).getNodeName();
@@ -133,14 +150,33 @@ public class Merger {
 			}
 
 			Node clone = toInsertChilds.item(index).cloneNode(true);
-			if (isElement(clone.getNodeName(), childNames)) {
-				if (clone.getTextContent() == null || clone.getTextContent().isEmpty()
-						|| Double.parseDouble(clone.getTextContent()) == 0.0) {
-					continue;
+			if (!isElement(clone.getNodeName(), childNames)) {
+				if (!clone.hasChildNodes() && !clone.getTextContent().trim().isEmpty()) {
+					try {
+						if (Double.parseDouble(clone.getNodeValue()) != 0.0) {
+							parrent.getOwnerDocument().adoptNode(clone);
+							parrent.appendChild(clone);
+						}
+					} catch (NumberFormatException e) {
+						;
+					}
+				} else {
+					parrent.getOwnerDocument().adoptNode(clone);
+					parrent.appendChild(clone);
+				}
+			} else {
+				Node node = getSubNode(parrent, clone.getNodeName());
+				if (node != null && !node.hasChildNodes()) {
+					try {
+						if (Double.parseDouble(node.getTextContent()) == 0.0) {
+							parrent.getOwnerDocument().adoptNode(clone);
+							parrent.replaceChild(clone, node);
+						}
+					} catch (NumberFormatException e) {
+						;
+					}
 				}
 			}
-			node.getOwnerDocument().adoptNode(clone);
-			node.appendChild(clone);
 		}
 	}
 
@@ -148,22 +184,16 @@ public class Merger {
 		if (doc == null) {
 			return null;
 		}
-		Node activities = doc.getDocumentElement().getChildNodes().item(0).getNextSibling();
-
-		// if (activities.getLength() == 1) {
-		Node activityNode = activities.getChildNodes().item(0).getNextSibling();
-
-		Node lap = activityNode.getChildNodes().item(2).getNextSibling();
-
-		NodeList lapChilds = lap.getChildNodes();
-
-		for (int index = 0; index < lapChilds.getLength(); index++) {
-			Node node = lapChilds.item(index);
-			if (node.getNodeName().equals(GarminXML.TRACK.getElementName())) {
-				return node.getChildNodes();
+		Node activities = getSubNode(doc.getDocumentElement(), GarminXML.ACTIVITIES.getElementName());
+		if (activities != null) {
+			Node activity = getSubNode(activities, GarminXML.ACTIVITY.getElementName());
+			if (activity != null) {
+				Node lap = getSubNode(activity, GarminXML.LAP.getElementName());
+				if (lap != null) {
+					return getSubNode(lap, GarminXML.TRACK.getElementName()).getChildNodes();
+				}
 			}
 		}
-
 		return null;
 	}
 
@@ -209,6 +239,8 @@ public class Merger {
 
 			NodeList connectTracks = merger.getTrackPoints(merger.getConnectDoc());
 			NodeList runtasticTracks = merger.getTrackPoints(merger.getRuntasticDoc());
+
+			merger.removeZeroSpeed(connectTracks);
 
 			merger.merge(connectTracks, runtasticTracks);
 
