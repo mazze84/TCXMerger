@@ -3,7 +3,6 @@ package Logic;
 import java.io.File;
 import java.io.IOException;
 import java.util.Calendar;
-import java.util.LinkedList;
 import java.util.List;
 
 import javax.xml.parsers.DocumentBuilder;
@@ -16,11 +15,11 @@ import org.w3c.dom.NodeList;
 import org.xml.sax.SAXException;
 
 public class Merger {
-	public File connect = null;
-	public File runtastic = null;
+	private File connect = null;
+	private File runtastic = null;
 
-	public Document connectDoc;
-	public Document runtasticDoc;
+	private Document connectDoc;
+	private Document runtasticDoc;
 
 	DocumentBuilderFactory factory;
 
@@ -52,27 +51,50 @@ public class Merger {
 		// this.runtasticDoc = builder.parse(this.runtastic);
 	}
 
-	public void merge() {
+	public NodeList merge(NodeList connect, NodeList runtastic) {
+		int connectLength = connect.getLength();
+		int runtasticLength = runtastic.getLength();
+
+		int length = Math.max(connectLength, runtasticLength);
+
+		for (int index = 0; index < length; index++) {
+			Node runtasticNode = null;
+			if (runtasticLength < index) {
+				runtasticNode = runtastic.item(index);
+			}
+			Node connectNode = null;
+			if (connectLength < index) {
+				connectNode = connect.item(index);
+			}
+
+			Node time = connect.item(index).getFirstChild();
+
+		}
+
+		// TODO: add the merged NodeList
+		return connect;
 
 	}
 
-	public List<Node> getTrackPoints(Document doc) {
-		List<Node> trackPoints = new LinkedList<Node>();
+	public NodeList getTrackPoints(Document doc) {
 
-		NodeList activities = doc.getDocumentElement().getElementsByTagName(GarminXML.ACTIVITIES.getElementName());
+		Node activities = doc.getDocumentElement().getChildNodes().item(0).getNextSibling();
 
-		if (activities.getLength() == 1) {
-			Node activityNode = activities.item(0).getFirstChild();
-			if (activityNode.getNodeName().equals(GarminXML.ACTIVITY.getElementName())) {
-				Node node = activityNode.getNextSibling();
-				for (; node != null; activityNode.getNextSibling()) {
-					if (node.getNodeName().equals(GarminXML.LAP.getElementName())) {
+		// if (activities.getLength() == 1) {
+		Node activityNode = activities.getChildNodes().item(0).getNextSibling();
 
-					}
-				}
+		Node lap = activityNode.getChildNodes().item(2).getNextSibling();
+
+		NodeList lapChilds = lap.getChildNodes();
+
+		for (int index = 0; index < lapChilds.getLength(); index++) {
+			Node node = lapChilds.item(index);
+			if (node.getNodeName().equals(GarminXML.TRACK.getElementName())) {
+				return node.getChildNodes();
 			}
 		}
-		return trackPoints;
+
+		return null;
 	}
 
 	private Calendar extractTime(String time) {
@@ -117,13 +139,14 @@ public class Merger {
 	public static void main(String args[]) {
 
 		File connect = new File("activity_1229268573.tcx");
-		File runtastic = new File("");
+		File runtastic = new File("runtastic_20160625_1142_Radfahren.tcx");
 		try {
 			Merger merger = new Merger(connect, runtastic);
-			int check = merger.checkTime("2016-06-25T10:57:01.000Z", "2016-06-25T10:59:04.000Z");
 
-			System.out.println(check);
+			NodeList connectTracks = merger.getTrackPoints(merger.getConnectDoc());
+			NodeList runtasticTracks = merger.getTrackPoints(merger.getRuntasticDoc());
 
+			merger.merge(connectTracks, runtasticTracks);
 		} catch (ParserConfigurationException e) {
 			// TODO Auto-generated catch block
 			e.printStackTrace();
@@ -135,6 +158,26 @@ public class Merger {
 			e.printStackTrace();
 		}
 
+	}
+
+	public File getConnect() {
+		return connect;
+	}
+
+	public void setConnect(File connect) {
+		this.connect = connect;
+	}
+
+	public Document getConnectDoc() {
+		return connectDoc;
+	}
+
+	public void setConnectDoc(Document connectDoc) {
+		this.connectDoc = connectDoc;
+	}
+
+	public Document getRuntasticDoc() {
+		return runtasticDoc;
 	}
 
 }
