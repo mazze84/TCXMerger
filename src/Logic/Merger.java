@@ -48,36 +48,69 @@ public class Merger {
 		this.factory = DocumentBuilderFactory.newInstance();
 		DocumentBuilder builder = factory.newDocumentBuilder();
 		this.connectDoc = builder.parse(this.connect);
-		// this.runtasticDoc = builder.parse(this.runtastic);
+		this.runtasticDoc = builder.parse(this.runtastic);
 	}
 
+	/**
+	 * merges the two trackpoints.
+	 * 
+	 * @param connect
+	 *            the tracklist of the connect tcx file
+	 * @param runtastic
+	 *            the tracklist of the runtastic tcx file
+	 * @return Returns the merged NodeList
+	 */
 	public NodeList merge(NodeList connect, NodeList runtastic) {
-		int connectLength = connect.getLength();
 		int runtasticLength = runtastic.getLength();
 
-		int length = Math.max(connectLength, runtasticLength);
+		int index = 0;
+		for (Node connectNode = connect.item(0); connectNode != null; connectNode = connectNode.getNextSibling()) {
 
-		for (int index = 0; index < length; index++) {
-			Node runtasticNode = null;
-			if (runtasticLength < index) {
-				runtasticNode = runtastic.item(index);
-			}
-			Node connectNode = null;
-			if (connectLength < index) {
-				connectNode = connect.item(index);
-			}
+			Node timeConnect = connectNode.getChildNodes().item(1);
+			if (timeConnect != null && timeConnect.getNodeName().equals(GarminXML.TIME.getElementName())) {
 
-			Node time = connect.item(index).getFirstChild();
+				for (; index < runtasticLength; index++) {
+					Node runtasticNode = runtasticNode = runtastic.item(index);
+
+					Node timeRuntastic = runtasticNode.getChildNodes().item(1);
+
+					if (timeRuntastic != null && timeRuntastic.getNodeName().equals(GarminXML.TIME.getElementName())) {
+
+						int isPrior = checkTime(timeConnect.getTextContent(), timeRuntastic.getTextContent());
+						System.out.println(timeConnect.getTextContent() + " " + timeRuntastic.getTextContent());
+
+						if (isPrior == 1) {
+							// TODO: append node prior to other node
+							Node newClone = runtasticNode.cloneNode(true);
+							connectDoc.adoptNode(newClone);
+							connectNode.insertBefore(newClone, connectNode);
+						} else if (isPrior == 0) {
+							// TODO: merge node into other node
+							mergeInto(connectNode, runtasticNode);
+						} else {
+							// ToDO: jump to next node
+							break;
+						}
+
+					}
+				}
+			}
 
 		}
 
-		// TODO: add the merged NodeList
+		// TODO: return the merged NodeList
 		return connect;
 
 	}
 
-	public NodeList getTrackPoints(Document doc) {
+	private void mergeInto(Node node, Node toInsert) {
 
+	}
+
+	public NodeList getTrackPoints(Document doc) {
+		if (doc == null) {
+			return null;
+		}
 		Node activities = doc.getDocumentElement().getChildNodes().item(0).getNextSibling();
 
 		// if (activities.getLength() == 1) {
