@@ -3,6 +3,8 @@ package logic;
 import java.io.File;
 import java.io.IOException;
 import java.util.Calendar;
+import java.util.LinkedList;
+import java.util.List;
 
 import javax.xml.parsers.DocumentBuilder;
 import javax.xml.parsers.DocumentBuilderFactory;
@@ -64,6 +66,19 @@ public class Merger {
 		return null;
 	}
 
+	private List<Node> getSubnodes(Node parrent, String nodeName) {
+		List<Node> nodes = new LinkedList<Node>();
+		if (parrent.hasChildNodes()) {
+			NodeList childNodes = parrent.getChildNodes();
+			for (int index = 0; index < childNodes.getLength(); index++) {
+				if (childNodes.item(index).getNodeName().equals(nodeName)) {
+					nodes.add(childNodes.item(index));
+				}
+			}
+		}
+		return nodes;
+	}
+
 	/**
 	 * merges the two trackpoints.
 	 * 
@@ -112,7 +127,7 @@ public class Merger {
 
 	}
 
-	public void removeZeroSpeed(NodeList nodeList) {
+	public void removeZeroDistance(NodeList nodeList) {
 		for (int index = 0; index < nodeList.getLength(); index++) {
 			Node distance = getSubNode(nodeList.item(index), GarminXML.DISTANCE.getElementName());
 			if (distance != null) {
@@ -240,7 +255,7 @@ public class Merger {
 			NodeList connectTracks = merger.getTrackPoints(merger.getConnectDoc());
 			NodeList runtasticTracks = merger.getTrackPoints(merger.getRuntasticDoc());
 
-			merger.removeZeroSpeed(connectTracks);
+			merger.removeZeroDistance(connectTracks);
 
 			merger.merge(connectTracks, runtasticTracks);
 
