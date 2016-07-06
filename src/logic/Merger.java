@@ -2,6 +2,7 @@ package logic;
 
 import java.io.File;
 import java.io.IOException;
+import java.math.BigDecimal;
 import java.util.Calendar;
 import java.util.LinkedList;
 import java.util.List;
@@ -31,7 +32,8 @@ public class Merger {
 
 		ACTIVITIES("Activities"), ACTIVITY("Activity"), LAP("Lap"), TRACK("Track"), TRACKPOINT("Trackpoint"), TIME(
 				"Time"), MAX_HEARTRATE("MaximumHeartRateBpm"), AVG_HEARTRATE("AverageHeartRateBpm"), HEARTRATE(
-						"HeartRateBpm"), CALORIES("Calories"), DISTANCE("DistanceMeters");
+						"HeartRateBpm"), CALORIES("Calories"), DISTANCE("DistanceMeters"), TOTAL_TIME(
+								"TotalTimeSeconds"), MAX_SPEED("MaximumSpeed"), CADENCE("Cadence"), VALUE("Value");
 
 		private String xmlElement;
 
@@ -66,7 +68,7 @@ public class Merger {
 		return null;
 	}
 
-	private List<Node> getSubnodes(Node parrent, String nodeName) {
+	private List<Node> getNodeList(Node parrent, String nodeName) {
 		List<Node> nodes = new LinkedList<Node>();
 		if (parrent.hasChildNodes()) {
 			NodeList childNodes = parrent.getChildNodes();
@@ -77,6 +79,22 @@ public class Merger {
 			}
 		}
 		return nodes;
+	}
+
+	public List<Node> getLaps(Document document) {
+		if (document == null) {
+			return null;
+		}
+
+		Node activities = getSubNode(document.getDocumentElement(), GarminXML.ACTIVITIES.getElementName());
+		if (activities != null) {
+			Node activity = getSubNode(activities, GarminXML.ACTIVITY.getElementName());
+			if (activity != null) {
+				return getNodeList(activity, GarminXML.LAP.getElementName());
+
+			}
+		}
+		return null;
 	}
 
 	/**
@@ -136,6 +154,55 @@ public class Merger {
 				}
 			}
 		}
+	}
+
+	private void mergeLapInfo(Node lap, Node lap2) {
+		if (!lap.getNodeName().equals(GarminXML.LAP.getElementName())
+				&& !lap2.getNodeName().equals(GarminXML.LAP.getElementName())) {
+			return;
+		}
+
+		mergeTotalTime(getSubNode(lap, GarminXML.TOTAL_TIME.getElementName()),
+				getSubNode(lap2, GarminXML.TOTAL_TIME.getElementName()));
+
+	}
+
+	private boolean mergeTotalTime(Node totalTime, Node totalTime2) {
+		if (totalTime2 != null) {
+			BigDecimal totalTime2BD = new BigDecimal(totalTime2.getTextContent());
+
+			if (totalTime != null) {
+				BigDecimal totalTimeBD = new BigDecimal(totalTime.getTextContent());
+
+				if (totalTimeBD.compareTo(totalTime2BD) == -1) {
+					Node newNode = totalTime2.cloneNode(false);
+					totalTime.getOwnerDocument().adoptNode(newNode);
+
+					totalTime.getParentNode().replaceChild(newNode, totalTime);
+					return true;
+				}
+			}
+		}
+		return false;
+	}
+
+	private boolean mergeDistance(Node distance, Node distance2) {
+		if (distance2 != null) {
+			BigDecimal distance2BD = new BigDecimal(distance2.getTextContent());
+
+			if (distance != null) {
+				BigDecimal distanceBD = new BigDecimal(distance.getTextContent());
+
+				if (distanceBD.compareTo(distance2BD) == -1) {
+					Node newNode = distance2.cloneNode(false);
+					distance.getOwnerDocument().adoptNode(newNode);
+
+					distance.getParentNode().replaceChild(newNode, distance);
+					return true;
+				}
+			}
+		}
+		return false;
 	}
 
 	private boolean isElement(String element, String[] list) {
