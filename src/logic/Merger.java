@@ -56,7 +56,7 @@ public class Merger {
 		this.runtasticDoc = builder.parse(this.runtastic);
 	}
 
-	private Node getSubNode(Node parrent, String nodeName) {
+	public Node getSubNode(Node parrent, String nodeName) {
 		if (parrent.hasChildNodes()) {
 			NodeList childNodes = parrent.getChildNodes();
 			for (int index = 0; index < childNodes.getLength(); index++) {
@@ -126,9 +126,7 @@ public class Merger {
 
 						if (isPrior == 1) {
 							// append node prior to other node
-							Node newClone = runtasticNode.cloneNode(true);
-							connectNode.getOwnerDocument().adoptNode(newClone);
-							connectNode.getParentNode().insertBefore(newClone, connectNode);
+							adoptNode(connectNode, runtasticNode, false);
 						} else if (isPrior == 0) {
 							// merge node into other node
 							mergeInto(connectNode, runtasticNode);
@@ -156,7 +154,7 @@ public class Merger {
 		}
 	}
 
-	private void mergeLapInfo(Node lap, Node lap2) {
+	public void mergeLapInfo(Node lap, Node lap2) {
 		if (!lap.getNodeName().equals(GarminXML.LAP.getElementName())
 				&& !lap2.getNodeName().equals(GarminXML.LAP.getElementName())) {
 			return;
@@ -165,44 +163,96 @@ public class Merger {
 		mergeTotalTime(getSubNode(lap, GarminXML.TOTAL_TIME.getElementName()),
 				getSubNode(lap2, GarminXML.TOTAL_TIME.getElementName()));
 
+		mergeDistance(getSubNode(lap, GarminXML.DISTANCE.getElementName()),
+				getSubNode(lap2, GarminXML.DISTANCE.getElementName()));
+
+		mergeHeartRate(getSubNode(lap, GarminXML.MAX_HEARTRATE.getElementName()),
+				getSubNode(lap2, GarminXML.MAX_HEARTRATE.getElementName()));
+
+		mergeHeartRate(getSubNode(lap, GarminXML.AVG_HEARTRATE.getElementName()),
+				getSubNode(lap2, GarminXML.AVG_HEARTRATE.getElementName()));
+
 	}
 
-	private boolean mergeTotalTime(Node totalTime, Node totalTime2) {
-		if (totalTime2 != null) {
-			BigDecimal totalTime2BD = new BigDecimal(totalTime2.getTextContent());
+	private boolean mergeDistance(Node distanceNode, Node distanceNode2) {
+		if (distanceNode2 != null) {
+			BigDecimal distance2 = new BigDecimal(distanceNode2.getTextContent());
 
-			if (totalTime != null) {
-				BigDecimal totalTimeBD = new BigDecimal(totalTime.getTextContent());
+			if (distanceNode != null) {
+				BigDecimal distance = new BigDecimal(distanceNode.getTextContent());
 
-				if (totalTimeBD.compareTo(totalTime2BD) == -1) {
-					Node newNode = totalTime2.cloneNode(false);
-					totalTime.getOwnerDocument().adoptNode(newNode);
+				if (distance.compareTo(distance2) == -1) {
+					adoptNode(distanceNode, distanceNode2, true);
 
-					totalTime.getParentNode().replaceChild(newNode, totalTime);
 					return true;
 				}
+			} else {
+				adoptNode(distanceNode, distanceNode2, true);
+				return true;
+			}
+
+		}
+		return false;
+	}
+
+	private boolean mergeTotalTime(Node totalTimeNode, Node totalTimeNode2) {
+		if (totalTimeNode2 != null) {
+			BigDecimal totalTime2 = new BigDecimal(totalTimeNode2.getTextContent());
+
+			if (totalTimeNode != null) {
+				BigDecimal totalTime = new BigDecimal(totalTimeNode.getTextContent());
+
+				if (totalTime.compareTo(totalTime2) == -1) {
+					adoptNode(totalTimeNode, totalTimeNode2, true);
+					return true;
+				}
+			} else {
+				adoptNode(totalTimeNode, totalTimeNode2, true);
+				return true;
 			}
 		}
 		return false;
 	}
 
-	private boolean mergeDistance(Node distance, Node distance2) {
-		if (distance2 != null) {
-			BigDecimal distance2BD = new BigDecimal(distance2.getTextContent());
+	private boolean mergeHeartRate(Node heartrateNode, Node heartrateNode2) {
+		if (heartrateNode2 != null) {
+			Node value = getSubNode(heartrateNode2, GarminXML.VALUE.getElementName());
+			if (value != null) {
+				BigDecimal heartrate2 = new BigDecimal(value.getTextContent());
 
-			if (distance != null) {
-				BigDecimal distanceBD = new BigDecimal(distance.getTextContent());
+				if (heartrateNode != null) {
+					value = getSubNode(heartrateNode, GarminXML.VALUE.getElementName());
+					if (value != null) {
+						BigDecimal heartrate = new BigDecimal(value.getTextContent());
 
-				if (distanceBD.compareTo(distance2BD) == -1) {
-					Node newNode = distance2.cloneNode(false);
-					distance.getOwnerDocument().adoptNode(newNode);
+						if (heartrate.compareTo(heartrate2) == -1) {
+							adoptNode(heartrateNode, heartrateNode2, true);
+							return true;
 
-					distance.getParentNode().replaceChild(newNode, distance);
+						}
+					}
+				} else {
+					adoptNode(heartrateNode, heartrateNode2, true);
 					return true;
 				}
 			}
+
 		}
 		return false;
+	}
+
+	private void adoptNode(Node node1, Node node2, boolean replace) {
+		if (node1 != null && node2 != null) {
+			Node newNode = node2.cloneNode(true);
+			node1.getOwnerDocument().adoptNode(newNode);
+
+			if (replace) {
+				node1.getParentNode().replaceChild(newNode, node1);
+			} else {
+				node1.getParentNode().insertBefore(newNode, node1);
+			}
+		}
+
 	}
 
 	private boolean isElement(String element, String[] list) {
@@ -314,8 +364,8 @@ public class Merger {
 
 	public static void main(String args[]) {
 
-		File connect = new File("activity_1229268573.tcx");
-		File runtastic = new File("runtastic_20160625_1142_Radfahren.tcx");
+		File connect = new File("activity_1250301933.tcx");
+		File runtastic = new File("runtastic_20160713_1637_Radfahren.tcx");
 		try {
 			Merger merger = new Merger(connect, runtastic);
 
@@ -324,7 +374,19 @@ public class Merger {
 
 			merger.removeZeroDistance(connectTracks);
 
-			merger.merge(connectTracks, runtasticTracks);
+			List<Node> connectLaps = merger.getLaps(merger.getConnectDoc());
+			List<Node> runtasticLaps = merger.getLaps(merger.getRuntasticDoc());
+
+			if (connectLaps.size() == runtasticLaps.size()) {
+				for (int index = 0; index < connectLaps.size(); index++) {
+					merger.mergeLapInfo(connectLaps.get(index), runtasticLaps.get(index));
+					merger.merge(
+							merger.getSubNode(connectLaps.get(index), GarminXML.TRACK.getElementName()).getChildNodes(),
+							merger.getSubNode(runtasticLaps.get(index), GarminXML.TRACK.getElementName())
+									.getChildNodes());
+
+				}
+			}
 
 			merger.writeFile(new File("merged.tcx"));
 		} catch (ParserConfigurationException e) {
