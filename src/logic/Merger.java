@@ -32,8 +32,9 @@ public class Merger {
 
 		ACTIVITIES("Activities"), ACTIVITY("Activity"), LAP("Lap"), TRACK("Track"), TRACKPOINT("Trackpoint"), TIME(
 				"Time"), MAX_HEARTRATE("MaximumHeartRateBpm"), AVG_HEARTRATE("AverageHeartRateBpm"), HEARTRATE(
-						"HeartRateBpm"), CALORIES("Calories"), DISTANCE("DistanceMeters"), TOTAL_TIME(
-								"TotalTimeSeconds"), MAX_SPEED("MaximumSpeed"), CADENCE("Cadence"), VALUE("Value");
+						"HeartRateBpm"), CALORIES("Calories"), ALTITUDE("AltitudeMeters"), DISTANCE(
+								"DistanceMeters"), TOTAL_TIME("TotalTimeSeconds"), MAX_SPEED(
+										"MaximumSpeed"), CADENCE("Cadence"), VALUE("Value"), POSITION("Position");
 
 		private String xmlElement;
 
@@ -154,6 +155,10 @@ public class Merger {
 		}
 	}
 
+	private int checkLaps(List<Node> nodes1, List<Node> nodes2) {
+		return nodes1.size() - nodes2.size();
+	}
+
 	public void mergeLapInfo(Node lap, Node lap2) {
 		if (!lap.getNodeName().equals(GarminXML.LAP.getElementName())
 				&& !lap2.getNodeName().equals(GarminXML.LAP.getElementName())) {
@@ -265,44 +270,63 @@ public class Merger {
 		return false;
 	}
 
+	/**
+	 * distance and altitude is usually more precise with GPS. GPS will have the
+	 * Position sub-node.
+	 * 
+	 * @param node
+	 *            Trackpoint node to check
+	 * @return Returns true if the Trackpoint node has a Position node
+	 */
+	private boolean checkPrecision(Node node) {
+		if (node.getNodeName().equals(GarminXML.TRACKPOINT.getElementName())) {
+			if (getSubNode(node, GarminXML.POSITION.getElementName()) != null) {
+				return true;
+			}
+		}
+		return false;
+	}
+
 	private void mergeInto(Node parrent, Node toInsert) {
 		NodeList toInsertChilds = toInsert.getChildNodes();
 		// TODO: check if the same child element is already existent
 		// do not add the existing element
 
-		NodeList nodeChilds = parrent.getChildNodes();
-		String[] childNames = new String[nodeChilds.getLength()];
-		for (int index = 0; index < nodeChilds.getLength(); index++) {
-			childNames[index] = nodeChilds.item(index).getNodeName();
-		}
-
 		for (int index = 0; index < toInsertChilds.getLength(); index++) {
+			// time is equal, skip it
 			if (toInsertChilds.item(index).getNodeName().equals(GarminXML.TIME.getElementName())) {
 				continue;
 			}
 
-			Node clone = toInsertChilds.item(index).cloneNode(true);
-			if (!isElement(clone.getNodeName(), childNames)) {
-				if (!clone.hasChildNodes() && !clone.getTextContent().trim().isEmpty()) {
+			// if gps node check
+			if (toInsertChilds.item(index).getNodeName().equals(GarminXML.ALTITUDE.getElementName())
+					|| toInsertChilds.item(index).getNodeName().equals(GarminXML.DISTANCE.getElementName())) {
+				if (checkPrecision(toInsertChilds.item(index))) {
+					adoptNode(parrent, toInsertChilds.item(index), true);
+				}
+			}
+
+			Node node = toInsertChilds.item(index);
+			// if node is not in the parrent node
+			if (getSubNode(parrent, node.getNodeName()) == null) {
+				if (!node.hasChildNodes() && !node.getTextContent().trim().isEmpty()) {
 					try {
-						if (Double.parseDouble(clone.getNodeValue()) != 0.0) {
-							parrent.getOwnerDocument().adoptNode(clone);
-							parrent.appendChild(clone);
+						if (Double.parseDouble(node.getTextContent()) != 0.0) {
+							adoptNode(parrent, node, true);
 						}
 					} catch (NumberFormatException e) {
 						;
 					}
 				} else {
-					parrent.getOwnerDocument().adoptNode(clone);
-					parrent.appendChild(clone);
+					adoptNode(parrent, node, true);
 				}
 			} else {
-				Node node = getSubNode(parrent, clone.getNodeName());
-				if (node != null && !node.hasChildNodes()) {
+				Node newNode = getSubNode(parrent, node.getNodeName());
+				if (newNode != null && !newNode.hasChildNodes()) {
 					try {
-						if (Double.parseDouble(node.getTextContent()) == 0.0) {
-							parrent.getOwnerDocument().adoptNode(clone);
-							parrent.replaceChild(clone, node);
+						if (Double.parseDouble(newNode.getTextContent()) == 0.0) {
+							parrent.getOwnerDocument().adoptNode(node);
+							parrent.replaceChild(node, newNode);
 						}
 					} catch (NumberFormatException e) {
 						;
@@ -364,8 +388,8 @@ public class Merger {
 
 	public static void main(String args[]) {
 
-		File connect = new File("activity_1250301933.tcx");
-		File runtastic = new File("runtastic_20160713_1637_Radfahren.tcx");
+		File connect = new File("activity_1258205115.tcx");
+		File runtastic = new File("runtastic_20160716_1349_Mountainbiken.tcx");
 		try {
 			Merger merger = new Merger(connect, runtastic);
 
@@ -377,7 +401,7 @@ public class Merger {
 			List<Node> connectLaps = merger.getLaps(merger.getConnectDoc());
 			List<Node> runtasticLaps = merger.getLaps(merger.getRuntasticDoc());
 
-			if (connectLaps.size() == runtasticLaps.size()) {
+			if (merger.checkLaps(connectLaps, runtasticLaps) == 0) {
 				for (int index = 0; index < connectLaps.size(); index++) {
 					merger.mergeLapInfo(connectLaps.get(index), runtasticLaps.get(index));
 					merger.merge(
