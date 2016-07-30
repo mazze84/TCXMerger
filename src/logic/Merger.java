@@ -121,7 +121,6 @@ public class Merger {
 					Node timeRuntastic = getSubNode(runtasticNode, GarminXML.TIME.getElementName());
 
 					if (timeRuntastic != null) {
-						String value = timeConnect.getNodeValue();
 						int isPrior = checkTime(timeConnect.getTextContent(), timeRuntastic.getTextContent());
 						System.out.println(timeConnect.getTextContent() + " " + timeRuntastic.getTextContent());
 
@@ -246,6 +245,14 @@ public class Merger {
 		return false;
 	}
 
+	/**
+	 * 
+	 * @param node1
+	 * @param node2
+	 * @param replace
+	 *            if true the node will be replaced, if false the node will be
+	 *            inserted before
+	 */
 	private void adoptNode(Node node1, Node node2, boolean replace) {
 		if (node1 != null && node2 != null) {
 			Node newNode = node2.cloneNode(true);
@@ -293,20 +300,22 @@ public class Merger {
 		// do not add the existing element
 
 		for (int index = 0; index < toInsertChilds.getLength(); index++) {
+			Node node = toInsertChilds.item(index);
+
 			// time is equal, skip it
-			if (toInsertChilds.item(index).getNodeName().equals(GarminXML.TIME.getElementName())) {
+			if (node.getNodeName().equals(GarminXML.TIME.getElementName())) {
 				continue;
 			}
 
 			// if gps node check
-			if (toInsertChilds.item(index).getNodeName().equals(GarminXML.ALTITUDE.getElementName())
-					|| toInsertChilds.item(index).getNodeName().equals(GarminXML.DISTANCE.getElementName())) {
-				if (checkPrecision(toInsertChilds.item(index))) {
-					adoptNode(parrent, toInsertChilds.item(index), true);
+			if (node.getNodeName().equals(GarminXML.ALTITUDE.getElementName())
+					|| node.getNodeName().equals(GarminXML.DISTANCE.getElementName())) {
+				if (checkPrecision(node)) {
+					adoptNode(parrent, node, true);
+					continue;
 				}
 			}
 
-			Node node = toInsertChilds.item(index);
 			// if node is not in the parrent node
 			if (getSubNode(parrent, node.getNodeName()) == null) {
 				if (!node.hasChildNodes() && !node.getTextContent().trim().isEmpty()) {
@@ -388,8 +397,8 @@ public class Merger {
 
 	public static void main(String args[]) {
 
-		File connect = new File("activity_1258205115.tcx");
-		File runtastic = new File("runtastic_20160716_1349_Mountainbiken.tcx");
+		File connect = new File("activity_1275293636.tcx");
+		File runtastic = new File("runtastic_20160727_1738_Laufen.tcx");
 		try {
 			Merger merger = new Merger(connect, runtastic);
 
