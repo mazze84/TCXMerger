@@ -395,49 +395,6 @@ public class Merger {
 		transformer.transform(source, result);
 	}
 
-	public static void main(String args[]) {
-
-		File connect = new File("activity_1275293636.tcx");
-		File runtastic = new File("runtastic_20160727_1738_Laufen.tcx");
-		try {
-			Merger merger = new Merger(connect, runtastic);
-
-			NodeList connectTracks = merger.getTrackPoints(merger.getConnectDoc());
-			NodeList runtasticTracks = merger.getTrackPoints(merger.getRuntasticDoc());
-
-			merger.removeZeroDistance(connectTracks);
-
-			List<Node> connectLaps = merger.getLaps(merger.getConnectDoc());
-			List<Node> runtasticLaps = merger.getLaps(merger.getRuntasticDoc());
-
-			if (merger.checkLaps(connectLaps, runtasticLaps) == 0) {
-				for (int index = 0; index < connectLaps.size(); index++) {
-					merger.mergeLapInfo(connectLaps.get(index), runtasticLaps.get(index));
-					merger.merge(
-							merger.getSubNode(connectLaps.get(index), GarminXML.TRACK.getElementName()).getChildNodes(),
-							merger.getSubNode(runtasticLaps.get(index), GarminXML.TRACK.getElementName())
-									.getChildNodes());
-
-				}
-			}
-
-			merger.writeFile(new File("merged.tcx"));
-		} catch (ParserConfigurationException e) {
-			// TODO Auto-generated catch block
-			e.printStackTrace();
-		} catch (SAXException e) {
-			// TODO Auto-generated catch block
-			e.printStackTrace();
-		} catch (IOException e) {
-			// TODO Auto-generated catch block
-			e.printStackTrace();
-		} catch (TransformerException e) {
-			// TODO Auto-generated catch block
-			e.printStackTrace();
-		}
-
-	}
-
 	public File getConnect() {
 		return connect;
 	}
