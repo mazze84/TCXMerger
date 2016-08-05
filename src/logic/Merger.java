@@ -267,16 +267,6 @@ public class Merger {
 
 	}
 
-	private boolean isElement(String element, String[] list) {
-		for (String item : list) {
-			if (item.equals(element)) {
-				return true;
-			}
-		}
-
-		return false;
-	}
-
 	/**
 	 * distance and altitude is usually more precise with GPS. GPS will have the
 	 * Position sub-node.
