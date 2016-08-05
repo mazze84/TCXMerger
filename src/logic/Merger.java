@@ -57,9 +57,9 @@ public class Merger {
 		this.runtasticDoc = builder.parse(this.runtastic);
 	}
 
-	public Node getSubNode(Node parrent, String nodeName) {
-		if (parrent.hasChildNodes()) {
-			NodeList childNodes = parrent.getChildNodes();
+	public Node getSubNode(Node parent, String nodeName) {
+		if (parent.hasChildNodes()) {
+			NodeList childNodes = parent.getChildNodes();
 			for (int index = 0; index < childNodes.getLength(); index++) {
 				if (childNodes.item(index).getNodeName().equals(nodeName)) {
 					return childNodes.item(index);
@@ -69,10 +69,10 @@ public class Merger {
 		return null;
 	}
 
-	private List<Node> getNodeList(Node parrent, String nodeName) {
+	private List<Node> getNodeList(Node parent, String nodeName) {
 		List<Node> nodes = new LinkedList<Node>();
-		if (parrent.hasChildNodes()) {
-			NodeList childNodes = parrent.getChildNodes();
+		if (parent.hasChildNodes()) {
+			NodeList childNodes = parent.getChildNodes();
 			for (int index = 0; index < childNodes.getLength(); index++) {
 				if (childNodes.item(index).getNodeName().equals(nodeName)) {
 					nodes.add(childNodes.item(index));
@@ -139,6 +139,14 @@ public class Merger {
 				}
 			}
 
+		}
+
+		// if there are nodes left append them to the end of the list
+		if (index < runtasticLength) {
+			Node connectParent = connect.item(0).getParentNode();
+			for (; index < runtasticLength; index++) {
+				appendNode(connectParent, runtastic.item(index));
+			}
 		}
 
 	}
@@ -267,6 +275,15 @@ public class Merger {
 
 	}
 
+	private void appendNode(Node parent, Node toAppend) {
+		if (parent != null && toAppend != null) {
+			Node newNode = toAppend.cloneNode(true);
+			parent.getOwnerDocument().adoptNode(newNode);
+
+			parent.appendChild(newNode);
+		}
+	}
+
 	private boolean isElement(String element, String[] list) {
 		for (String item : list) {
 			if (item.equals(element)) {
@@ -294,7 +311,7 @@ public class Merger {
 		return false;
 	}
 
-	private void mergeInto(Node parrent, Node toInsert) {
+	private void mergeInto(Node parent, Node toInsert) {
 		NodeList toInsertChilds = toInsert.getChildNodes();
 		// TODO: check if the same child element is already existent
 		// do not add the existing element
@@ -310,32 +327,32 @@ public class Merger {
 			// if gps node check
 			if (node.getNodeName().equals(GarminXML.ALTITUDE.getElementName())
 					|| node.getNodeName().equals(GarminXML.DISTANCE.getElementName())) {
-				if (checkPrecision(node)) {
-					adoptNode(parrent, node, true);
+				if (checkPrecision(node.getParentNode())) {
+					adoptNode(getSubNode(parent, node.getNodeName()), node, true);
 					continue;
 				}
 			}
 
-			// if node is not in the parrent node
-			if (getSubNode(parrent, node.getNodeName()) == null) {
+			// if node is not in the parent node
+			Node newNode = getSubNode(parent, node.getNodeName());
+			if (newNode == null) {
 				if (!node.hasChildNodes() && !node.getTextContent().trim().isEmpty()) {
 					try {
 						if (Double.parseDouble(node.getTextContent()) != 0.0) {
-							adoptNode(parrent, node, true);
+							adoptNode(parent, node, true);
 						}
 					} catch (NumberFormatException e) {
 						;
 					}
 				} else {
-					adoptNode(parrent, node, true);
+					adoptNode(parent, node, true);
 				}
 			} else {
-				Node newNode = getSubNode(parrent, node.getNodeName());
 				if (newNode != null && !newNode.hasChildNodes()) {
 					try {
 						if (Double.parseDouble(newNode.getTextContent()) == 0.0) {
-							parrent.getOwnerDocument().adoptNode(node);
-							parrent.replaceChild(node, newNode);
+							parent.getOwnerDocument().adoptNode(node);
+							parent.replaceChild(node, newNode);
 						}
 					} catch (NumberFormatException e) {
 						;
@@ -385,7 +402,7 @@ public class Merger {
 		return connectCal.compareTo(runtasticCal);
 	}
 
-	private void writeFile(File outputFile) throws TransformerException {
+	public void writeFile(File outputFile) throws TransformerException {
 		// TODO: write new tcx file
 		TransformerFactory tFactory = TransformerFactory.newInstance();
 		Transformer transformer = tFactory.newTransformer();
