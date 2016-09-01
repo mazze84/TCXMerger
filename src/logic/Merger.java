@@ -3,8 +3,8 @@ package logic;
 import java.io.File;
 import java.io.IOException;
 import java.math.BigDecimal;
+import java.util.ArrayList;
 import java.util.Calendar;
-import java.util.LinkedList;
 import java.util.List;
 
 import javax.xml.parsers.DocumentBuilder;
@@ -17,6 +17,7 @@ import javax.xml.transform.dom.DOMSource;
 import javax.xml.transform.stream.StreamResult;
 
 import org.w3c.dom.Document;
+import org.w3c.dom.NamedNodeMap;
 import org.w3c.dom.Node;
 import org.w3c.dom.NodeList;
 import org.xml.sax.SAXException;
@@ -33,8 +34,8 @@ public class Merger {
 		ACTIVITIES("Activities"), ACTIVITY("Activity"), LAP("Lap"), TRACK("Track"), TRACKPOINT("Trackpoint"), TIME(
 				"Time"), MAX_HEARTRATE("MaximumHeartRateBpm"), AVG_HEARTRATE("AverageHeartRateBpm"), HEARTRATE(
 						"HeartRateBpm"), CALORIES("Calories"), ALTITUDE("AltitudeMeters"), DISTANCE(
-								"DistanceMeters"), TOTAL_TIME("TotalTimeSeconds"), MAX_SPEED(
-										"MaximumSpeed"), CADENCE("Cadence"), VALUE("Value"), POSITION("Position");
+								"DistanceMeters"), TOTAL_TIME("TotalTimeSeconds"), MAX_SPEED("MaximumSpeed"), CADENCE(
+										"Cadence"), VALUE("Value"), POSITION("Position"), EXTENSIONS("Extensions");
 
 		private String xmlElement;
 
@@ -70,7 +71,7 @@ public class Merger {
 	}
 
 	private List<Node> getNodeList(Node parent, String nodeName) {
-		List<Node> nodes = new LinkedList<Node>();
+		List<Node> nodes = new ArrayList<Node>();
 		if (parent.hasChildNodes()) {
 			NodeList childNodes = parent.getChildNodes();
 			for (int index = 0; index < childNodes.getLength(); index++) {
@@ -162,7 +163,7 @@ public class Merger {
 		}
 	}
 
-	private int checkLaps(List<Node> nodes1, List<Node> nodes2) {
+	private int compareLaps(List<Node> nodes1, List<Node> nodes2) {
 		return nodes1.size() - nodes2.size();
 	}
 
@@ -265,14 +266,14 @@ public class Merger {
 		if (node1 != null && node2 != null) {
 			Node newNode = node2.cloneNode(true);
 			node1.getOwnerDocument().adoptNode(newNode);
-
+			System.out.println(nodeToString(newNode));
 			if (replace) {
 				node1.getParentNode().replaceChild(newNode, node1);
 			} else {
 				node1.getParentNode().insertBefore(newNode, node1);
 			}
-		}
 
+		}
 	}
 
 	private void appendNode(Node parent, Node toAppend) {
@@ -292,6 +293,25 @@ public class Merger {
 		}
 
 		return false;
+	}
+
+	/**
+	 * Checks if the Node has a Extensions Node
+	 * 
+	 * @param node
+	 *            Trackpoint Node
+	 * @return returns the Extension Node
+	 */
+	private Node hasExtensionNode(Node node) {
+		if (GarminXML.TRACKPOINT.getElementName().equals(node.getNodeName())) {
+			NodeList children = node.getChildNodes();
+			for (int index = 0; index <= children.getLength(); index++) {
+				if (GarminXML.EXTENSIONS.getElementName().equals(children.item(index).getNodeName())) {
+					return children.item(index);
+				}
+			}
+		}
+		return null;
 	}
 
 	/**
@@ -430,6 +450,24 @@ public class Merger {
 
 	public Document getRuntasticDoc() {
 		return runtasticDoc;
+	}
+
+	public String nodeToString(Node node) {
+		StringBuilder nodeString = new StringBuilder();
+
+		nodeString.append("<");
+		nodeString.append(node.getNodeName());
+
+		NamedNodeMap attributes = node.getAttributes();
+
+		for (int index = 0; index < attributes.getLength(); index++) {
+			nodeString.append(attributes.item(index) + " ");
+		}
+
+		nodeString.append(">" + node.getNodeValue() + " " + node.getTextContent());
+
+		return nodeString.toString();
+
 	}
 
 }
