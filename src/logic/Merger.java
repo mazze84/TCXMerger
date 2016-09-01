@@ -59,7 +59,7 @@ public class Merger {
 	}
 
 	public Node getSubNode(Node parent, String nodeName) {
-		if (parent.hasChildNodes()) {
+		if (parent != null && parent.hasChildNodes()) {
 			NodeList childNodes = parent.getChildNodes();
 			for (int index = 0; index < childNodes.getLength(); index++) {
 				if (childNodes.item(index).getNodeName().equals(nodeName)) {
@@ -111,7 +111,9 @@ public class Merger {
 		int runtasticLength = runtastic.getLength();
 
 		int index = 0;
-		for (Node connectNode = connect.item(0); connectNode != null; connectNode = connectNode.getNextSibling()) {
+		for (int index1 = 0; index < connect.getLength(); index1++) {
+			// FIXME: node is sometimes null. Check why
+			Node connectNode = connect.item(index1);
 
 			Node timeConnect = getSubNode(connectNode, GarminXML.TIME.getElementName());
 			if (timeConnect != null) {
@@ -123,9 +125,10 @@ public class Merger {
 
 					if (timeRuntastic != null) {
 						int isPrior = checkTime(timeConnect.getTextContent(), timeRuntastic.getTextContent());
-						System.out.println(timeConnect.getTextContent() + " " + timeRuntastic.getTextContent());
+						System.out.println(index + ":\t " + timeConnect.getTextContent() + "\n\t"
+								+ timeRuntastic.getTextContent());
 
-						if (isPrior == 1) {
+						if (isPrior >= 1) {
 							// append node prior to other node
 							adoptNode(connectNode, runtasticNode, false);
 						} else if (isPrior == 0) {
@@ -463,9 +466,9 @@ public class Merger {
 		for (int index = 0; index < attributes.getLength(); index++) {
 			nodeString.append(attributes.item(index) + " ");
 		}
-
-		nodeString.append(">" + node.getNodeValue() + " " + node.getTextContent());
-
+		if (!node.hasChildNodes()) {
+			nodeString.append("> " + node.getTextContent());
+		}
 		return nodeString.toString();
 
 	}
