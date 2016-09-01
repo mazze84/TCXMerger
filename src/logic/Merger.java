@@ -163,7 +163,7 @@ public class Merger {
 		}
 	}
 
-	private int compareLaps(List<Node> nodes1, List<Node> nodes2) {
+	public int compareLaps(List<Node> nodes1, List<Node> nodes2) {
 		return nodes1.size() - nodes2.size();
 	}
 
