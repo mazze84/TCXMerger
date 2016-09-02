@@ -99,6 +99,13 @@ public class Merger {
 		return null;
 	}
 
+	private void removeExtensionNode(Node node) {
+		Node nodeToRemove = hasExtensionNode(node);
+		if (nodeToRemove != null) {
+			nodeToRemove.getParentNode().removeChild(nodeToRemove);
+		}
+	}
+
 	/**
 	 * merges the two trackpoints.
 	 * 
@@ -113,10 +120,15 @@ public class Merger {
 		int index = 0;
 		for (int index1 = 0; index1 < connect.getLength(); index1++) {
 			Node connectNode = connect.item(index1);
+			if (!checkPrecision(connectNode)) {
+				removeExtensionNode(connectNode);
+			}
 
 			Node timeConnect = getSubNode(connectNode, GarminXML.TIME.getElementName());
 			if (timeConnect != null) {
-
+				if (!checkPrecision(timeConnect)) {
+					removeExtensionNode(timeConnect);
+				}
 				for (; index < runtasticLength; index++) {
 					Node runtasticNode = runtastic.item(index);
 
@@ -304,7 +316,7 @@ public class Merger {
 	private Node hasExtensionNode(Node node) {
 		if (GarminXML.TRACKPOINT.getElementName().equals(node.getNodeName())) {
 			NodeList children = node.getChildNodes();
-			for (int index = 0; index <= children.getLength(); index++) {
+			for (int index = 0; index < children.getLength(); index++) {
 				if (GarminXML.EXTENSIONS.getElementName().equals(children.item(index).getNodeName())) {
 					return children.item(index);
 				}
