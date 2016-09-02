@@ -288,6 +288,7 @@ public class Merger {
 		}
 	}
 
+<<<<<<< HEAD
 	private boolean isElement(String element, String[] list) {
 		for (String item : list) {
 			if (item.equals(element)) {
@@ -317,6 +318,8 @@ public class Merger {
 		return null;
 	}
 
+=======
+>>>>>>> branch 'master' of https://github.com/mazze84/TCXMerger.git
 	/**
 	 * distance and altitude is usually more precise with GPS. GPS will have the
 	 * Position sub-node.
