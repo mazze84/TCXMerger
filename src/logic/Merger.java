@@ -277,6 +277,14 @@ public class Merger {
 		}
 	}
 
+	private void mergeNode(Node parent, Node node) {
+		if (parent != null && node != null) {
+			Node newNode = node.cloneNode(true);
+			parent.getOwnerDocument().adoptNode(newNode);
+			parent.appendChild(newNode);
+		}
+	}
+
 	private void appendNode(Node parent, Node toAppend) {
 		if (parent != null && toAppend != null) {
 			Node newNode = toAppend.cloneNode(true);
@@ -356,7 +364,7 @@ public class Merger {
 						;
 					}
 				} else {
-					adoptNode(parent, node, true);
+					mergeNode(parent, node);
 				}
 			} else {
 				if (newNode != null && !newNode.hasChildNodes()) {
