@@ -111,8 +111,7 @@ public class Merger {
 		int runtasticLength = runtastic.getLength();
 
 		int index = 0;
-		for (int index1 = 0; index < connect.getLength(); index1++) {
-			// FIXME: node is sometimes null. Check why
+		for (int index1 = 0; index1 < connect.getLength(); index1++) {
 			Node connectNode = connect.item(index1);
 
 			Node timeConnect = getSubNode(connectNode, GarminXML.TIME.getElementName());
@@ -269,7 +268,6 @@ public class Merger {
 		if (node1 != null && node2 != null) {
 			Node newNode = node2.cloneNode(true);
 			node1.getOwnerDocument().adoptNode(newNode);
-			System.out.println(nodeToString(newNode));
 			if (replace) {
 				node1.getParentNode().replaceChild(newNode, node1);
 			} else {
@@ -286,17 +284,6 @@ public class Merger {
 
 			parent.appendChild(newNode);
 		}
-	}
-
-<<<<<<< HEAD
-	private boolean isElement(String element, String[] list) {
-		for (String item : list) {
-			if (item.equals(element)) {
-				return true;
-			}
-		}
-
-		return false;
 	}
 
 	/**
@@ -318,8 +305,6 @@ public class Merger {
 		return null;
 	}
 
-=======
->>>>>>> branch 'master' of https://github.com/mazze84/TCXMerger.git
 	/**
 	 * distance and altitude is usually more precise with GPS. GPS will have the
 	 * Position sub-node.
@@ -466,7 +451,7 @@ public class Merger {
 
 		NamedNodeMap attributes = node.getAttributes();
 
-		for (int index = 0; index < attributes.getLength(); index++) {
+		for (int index = 0; attributes != null && index < attributes.getLength(); index++) {
 			nodeString.append(attributes.item(index) + " ");
 		}
 		if (!node.hasChildNodes()) {
