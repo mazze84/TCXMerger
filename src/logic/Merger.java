@@ -120,13 +120,13 @@ public class Merger {
 		int index = 0;
 		for (int index1 = 0; index1 < connect.getLength(); index1++) {
 			Node connectNode = connect.item(index1);
-			if (!checkPrecision(connectNode)) {
+			if (!isPrecise(connectNode)) {
 				removeExtensionNode(connectNode);
 			}
 
 			Node timeConnect = getSubNode(connectNode, GarminXML.TIME.getElementName());
 			if (timeConnect != null) {
-				if (!checkPrecision(timeConnect)) {
+				if (!isPrecise(timeConnect)) {
 					removeExtensionNode(timeConnect);
 				}
 				for (; index < runtasticLength; index++) {
@@ -314,7 +314,7 @@ public class Merger {
 	 *            Trackpoint node to check
 	 * @return Returns true if the Trackpoint node has a Position node
 	 */
-	private boolean checkPrecision(Node node) {
+	private boolean isPrecise(Node node) {
 		if (node.getNodeName().equals(GarminXML.TRACKPOINT.getElementName())) {
 			if (getSubNode(node, GarminXML.POSITION.getElementName()) != null) {
 				return true;
@@ -339,7 +339,7 @@ public class Merger {
 			// if gps node check
 			if (node.getNodeName().equals(GarminXML.ALTITUDE.getElementName())
 					|| node.getNodeName().equals(GarminXML.DISTANCE.getElementName())) {
-				if (checkPrecision(node.getParentNode())) {
+				if (isPrecise(node.getParentNode())) {
 					adoptNode(getSubNode(parent, node.getNodeName()), node, true);
 					continue;
 				}
