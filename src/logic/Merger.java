@@ -100,7 +100,7 @@ public class Merger {
 	}
 
 	private void removeExtensionNode(Node node) {
-		Node nodeToRemove = hasExtensionNode(node);
+		Node nodeToRemove = getSubNode(node, GarminXML.EXTENSIONS.getElementName());
 		if (nodeToRemove != null) {
 			nodeToRemove.getParentNode().removeChild(nodeToRemove);
 		}
@@ -304,25 +304,6 @@ public class Merger {
 
 			parent.appendChild(newNode);
 		}
-	}
-
-	/**
-	 * Checks if the Node has a Extensions Node
-	 * 
-	 * @param node
-	 *            Trackpoint Node
-	 * @return returns the Extension Node
-	 */
-	private Node hasExtensionNode(Node node) {
-		if (GarminXML.TRACKPOINT.getElementName().equals(node.getNodeName())) {
-			NodeList children = node.getChildNodes();
-			for (int index = 0; index < children.getLength(); index++) {
-				if (GarminXML.EXTENSIONS.getElementName().equals(children.item(index).getNodeName())) {
-					return children.item(index);
-				}
-			}
-		}
-		return null;
 	}
 
 	/**
