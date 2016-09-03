@@ -3,11 +3,9 @@ package logic;
 import java.io.File;
 import java.io.IOException;
 import java.math.BigDecimal;
+import java.util.ArrayList;
 import java.util.Calendar;
-import java.util.HashMap;
-import java.util.LinkedList;
 import java.util.List;
-import java.util.Map;
 
 import javax.xml.parsers.DocumentBuilder;
 import javax.xml.parsers.DocumentBuilderFactory;
@@ -19,6 +17,7 @@ import javax.xml.transform.dom.DOMSource;
 import javax.xml.transform.stream.StreamResult;
 
 import org.w3c.dom.Document;
+import org.w3c.dom.NamedNodeMap;
 import org.w3c.dom.Node;
 import org.w3c.dom.NodeList;
 import org.xml.sax.SAXException;
@@ -38,8 +37,8 @@ public class Merger {
 		ACTIVITIES("Activities"), ACTIVITY("Activity"), LAP("Lap"), TRACK("Track"), TRACKPOINT("Trackpoint"), TIME(
 				"Time"), MAX_HEARTRATE("MaximumHeartRateBpm"), AVG_HEARTRATE("AverageHeartRateBpm"), HEARTRATE(
 						"HeartRateBpm"), CALORIES("Calories"), ALTITUDE("AltitudeMeters"), DISTANCE(
-								"DistanceMeters"), TOTAL_TIME("TotalTimeSeconds"), MAX_SPEED(
-										"MaximumSpeed"), CADENCE("Cadence"), VALUE("Value"), POSITION("Position");
+								"DistanceMeters"), TOTAL_TIME("TotalTimeSeconds"), MAX_SPEED("MaximumSpeed"), CADENCE(
+										"Cadence"), VALUE("Value"), POSITION("Position"), EXTENSIONS("Extensions");
 
 		private String xmlElement;
 
@@ -66,7 +65,7 @@ public class Merger {
 	}
 
 	public Node getSubNode(Node parent, String nodeName) {
-		if (parent.hasChildNodes()) {
+		if (parent != null && parent.hasChildNodes()) {
 			NodeList childNodes = parent.getChildNodes();
 			for (int index = 0; index < childNodes.getLength(); index++) {
 				if (childNodes.item(index).getNodeName().equals(nodeName)) {
@@ -79,7 +78,7 @@ public class Merger {
 	}
 
 	private List<Node> getNodeList(Node parent, String nodeName) {
-		List<Node> nodes = new LinkedList<Node>();
+		List<Node> nodes = new ArrayList<Node>();
 		if (parent.hasChildNodes()) {
 			NodeList childNodes = parent.getChildNodes();
 			for (int index = 0; index < childNodes.getLength(); index++) {
@@ -107,6 +106,13 @@ public class Merger {
 		return null;
 	}
 
+	private void removeExtensionNode(Node node) {
+		Node nodeToRemove = getSubNode(node, GarminXML.EXTENSIONS.getElementName());
+		if (nodeToRemove != null) {
+			nodeToRemove.getParentNode().removeChild(nodeToRemove);
+		}
+	}
+
 	/**
 	 * merges the two trackpoints.
 	 * 
@@ -117,13 +123,18 @@ public class Merger {
 	 */
 	public void merge(NodeList connect, NodeList runtastic) {
 		int runtasticLength = runtastic.getLength();
-		Map<Node, Node> toMerge = new HashMap<Node, Node>();
 		int index = 0;
-		for (Node connectNode = connect.item(0); connectNode != null; connectNode = connectNode.getNextSibling()) {
+		for (int index1 = 0; index1 < connect.getLength(); index1++) {
+			Node connectNode = connect.item(index1);
+			if (!isPrecision(connectNode)) {
+				removeExtensionNode(connectNode);
+			}
 
 			Node timeConnect = getSubNode(connectNode, GarminXML.TIME.getElementName());
 			if (timeConnect != null) {
-
+				if (!isPrecision(timeConnect)) {
+					removeExtensionNode(timeConnect);
+				}
 				for (; index < runtasticLength; index++) {
 					Node runtasticNode = runtastic.item(index);
 
@@ -132,7 +143,10 @@ public class Merger {
 					if (timeRuntastic != null) {
 						int isPrior = checkTime(timeConnect.getTextContent(), timeRuntastic.getTextContent());
 
-						if (isPrior == 1) {
+						System.out.println(index + ":\t " + timeConnect.getTextContent() + "\n\t"
+								+ timeRuntastic.getTextContent());
+
+						if (isPrior >= 1) {
 							// append node prior to other node
 							adoptNode(connectNode, runtasticNode, false);
 							System.out.println("Adopted node " + runtasticNode.getNodeName() + " (" + index + ")");
@@ -172,6 +186,10 @@ public class Merger {
 				}
 			}
 		}
+	}
+
+	public int compareLaps(List<Node> nodes1, List<Node> nodes2) {
+		return nodes1.size() - nodes2.size();
 	}
 
 	public void mergeLapInfo(Node lap, Node lap2) {
@@ -275,14 +293,21 @@ public class Merger {
 		if (node1 != null && node2 != null) {
 			Node newNode = node2.cloneNode(true);
 			node1.getOwnerDocument().adoptNode(newNode);
-
 			if (replace) {
 				node1.getParentNode().replaceChild(newNode, node1);
 			} else {
 				node1.getParentNode().insertBefore(newNode, node1);
 			}
-		}
 
+		}
+	}
+
+	private void mergeNode(Node parent, Node node) {
+		if (parent != null && node != null) {
+			Node newNode = node.cloneNode(true);
+			parent.getOwnerDocument().adoptNode(newNode);
+			parent.appendChild(newNode);
+		}
 	}
 
 	private void appendNode(Node parent, Node toAppend) {
@@ -355,7 +380,7 @@ public class Merger {
 						;
 					}
 				} else {
-					adoptNode(parent, node, true);
+					mergeNode(parent, node);
 				}
 			} else {
 				if (newNode != null && !newNode.hasChildNodes()) {
@@ -439,6 +464,24 @@ public class Merger {
 
 	public Document getRuntasticDoc() {
 		return runtasticDoc;
+	}
+
+	public String nodeToString(Node node) {
+		StringBuilder nodeString = new StringBuilder();
+
+		nodeString.append("<");
+		nodeString.append(node.getNodeName());
+
+		NamedNodeMap attributes = node.getAttributes();
+
+		for (int index = 0; attributes != null && index < attributes.getLength(); index++) {
+			nodeString.append(attributes.item(index) + " ");
+		}
+		if (!node.hasChildNodes()) {
+			nodeString.append("> " + node.getTextContent());
+		}
+		return nodeString.toString();
+
 	}
 
 }
