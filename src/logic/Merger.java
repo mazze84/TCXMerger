@@ -4,8 +4,10 @@ import java.io.File;
 import java.io.IOException;
 import java.math.BigDecimal;
 import java.util.Calendar;
+import java.util.HashMap;
 import java.util.LinkedList;
 import java.util.List;
+import java.util.Map;
 
 import javax.xml.parsers.DocumentBuilder;
 import javax.xml.parsers.DocumentBuilderFactory;
@@ -27,6 +29,9 @@ public class Merger {
 
 	private Document connectDoc;
 	private Document runtasticDoc;
+
+	private boolean isPreciseConnect = false;
+	private boolean isPreciseRuntastic = false;
 
 	public enum GarminXML {
 
@@ -55,6 +60,9 @@ public class Merger {
 		DocumentBuilder builder = DocumentBuilderFactory.newInstance().newDocumentBuilder();
 		this.connectDoc = builder.parse(this.connect);
 		this.runtasticDoc = builder.parse(this.runtastic);
+
+		isPreciseConnect = checkPrecision(connectDoc);
+		isPreciseRuntastic = checkPrecision(runtasticDoc);
 	}
 
 	public Node getSubNode(Node parent, String nodeName) {
@@ -62,6 +70,7 @@ public class Merger {
 			NodeList childNodes = parent.getChildNodes();
 			for (int index = 0; index < childNodes.getLength(); index++) {
 				if (childNodes.item(index).getNodeName().equals(nodeName)) {
+					System.out.println(childNodes.item(index).getNodeName());
 					return childNodes.item(index);
 				}
 			}
@@ -108,7 +117,7 @@ public class Merger {
 	 */
 	public void merge(NodeList connect, NodeList runtastic) {
 		int runtasticLength = runtastic.getLength();
-
+		Map<Node, Node> toMerge = new HashMap<Node, Node>();
 		int index = 0;
 		for (Node connectNode = connect.item(0); connectNode != null; connectNode = connectNode.getNextSibling()) {
 
@@ -122,13 +131,15 @@ public class Merger {
 
 					if (timeRuntastic != null) {
 						int isPrior = checkTime(timeConnect.getTextContent(), timeRuntastic.getTextContent());
-						System.out.println(timeConnect.getTextContent() + " " + timeRuntastic.getTextContent());
 
 						if (isPrior == 1) {
 							// append node prior to other node
 							adoptNode(connectNode, runtasticNode, false);
+							System.out.println("Adopted node " + runtasticNode.getNodeName() + " (" + index + ")");
 						} else if (isPrior == 0) {
 							// merge node into other node
+							System.out.println("Merged node " + runtasticNode.getNodeName() + " into "
+									+ connectNode.getNodeName() + " (" + index + ")");
 							mergeInto(connectNode, runtasticNode);
 						} else {
 							// jump to next node
@@ -146,6 +157,7 @@ public class Merger {
 			Node connectParent = connect.item(0).getParentNode();
 			for (; index < runtasticLength; index++) {
 				appendNode(connectParent, runtastic.item(index));
+				System.out.println("Appended node " + runtastic.item(index).getNodeName() + " (" + index + ")");
 			}
 		}
 
@@ -160,10 +172,6 @@ public class Merger {
 				}
 			}
 		}
-	}
-
-	private int checkLaps(List<Node> nodes1, List<Node> nodes2) {
-		return nodes1.size() - nodes2.size();
 	}
 
 	public void mergeLapInfo(Node lap, Node lap2) {
@@ -187,15 +195,17 @@ public class Merger {
 	}
 
 	private boolean mergeDistance(Node distanceNode, Node distanceNode2) {
+		boolean isPreciseNode1 = checkPrecision(distanceNode.getOwnerDocument());
+		boolean isPreciseNode2 = checkPrecision(distanceNode2.getOwnerDocument());
+
 		if (distanceNode2 != null) {
-			BigDecimal distance2 = new BigDecimal(distanceNode2.getTextContent());
 
 			if (distanceNode != null) {
-				BigDecimal distance = new BigDecimal(distanceNode.getTextContent());
-
-				if (distance.compareTo(distance2) == -1) {
+				if (!isPreciseNode1 && isPreciseNode2) {
 					adoptNode(distanceNode, distanceNode2, true);
-
+					return true;
+				} else if (distanceNode.getTextContent().equals(0.0)) {
+					adoptNode(distanceNode, distanceNode2, true);
 					return true;
 				}
 			} else {
@@ -237,7 +247,7 @@ public class Merger {
 					if (value != null) {
 						BigDecimal heartrate = new BigDecimal(value.getTextContent());
 
-						if (heartrate.compareTo(heartrate2) == -1) {
+						if (heartrate.compareTo(heartrate2) <= -1) {
 							adoptNode(heartrateNode, heartrateNode2, true);
 							return true;
 
@@ -292,7 +302,7 @@ public class Merger {
 	 *            Trackpoint node to check
 	 * @return Returns true if the Trackpoint node has a Position node
 	 */
-	private boolean checkPrecision(Node node) {
+	private boolean isPrecision(Node node) {
 		if (node.getNodeName().equals(GarminXML.TRACKPOINT.getElementName())) {
 			if (getSubNode(node, GarminXML.POSITION.getElementName()) != null) {
 				return true;
@@ -301,10 +311,20 @@ public class Merger {
 		return false;
 	}
 
+	public boolean checkPrecision(Document document) {
+		NodeList trackpoints = getTrackPoints(document);
+
+		for (int index = 0; index < trackpoints.getLength(); index++) {
+			if (isPrecision(trackpoints.item(index))) {
+				return true;
+			}
+		}
+
+		return false;
+	}
+
 	private void mergeInto(Node parent, Node toInsert) {
 		NodeList toInsertChilds = toInsert.getChildNodes();
-		// TODO: check if the same child element is already existent
-		// do not add the existing element
 
 		for (int index = 0; index < toInsertChilds.getLength(); index++) {
 			Node node = toInsertChilds.item(index);
@@ -317,7 +337,7 @@ public class Merger {
 			// if gps node check
 			if (node.getNodeName().equals(GarminXML.ALTITUDE.getElementName())
 					|| node.getNodeName().equals(GarminXML.DISTANCE.getElementName())) {
-				if (checkPrecision(node.getParentNode())) {
+				if (isPrecision(node.getParentNode())) {
 					adoptNode(getSubNode(parent, node.getNodeName()), node, true);
 					continue;
 				}
@@ -393,7 +413,6 @@ public class Merger {
 	}
 
 	public void writeFile(File outputFile) throws TransformerException {
-		// TODO: write new tcx file
 		TransformerFactory tFactory = TransformerFactory.newInstance();
 		Transformer transformer = tFactory.newTransformer();
 
