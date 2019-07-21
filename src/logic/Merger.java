@@ -34,11 +34,11 @@ public class Merger {
 
 	public enum GarminXML {
 
-		ACTIVITIES("Activities"), ACTIVITY("Activity"), LAP("Lap"), TRACK("Track"), TRACKPOINT("Trackpoint"), TIME(
-				"Time"), MAX_HEARTRATE("MaximumHeartRateBpm"), AVG_HEARTRATE("AverageHeartRateBpm"), HEARTRATE(
-						"HeartRateBpm"), CALORIES("Calories"), ALTITUDE("AltitudeMeters"), DISTANCE(
-								"DistanceMeters"), TOTAL_TIME("TotalTimeSeconds"), MAX_SPEED("MaximumSpeed"), CADENCE(
-										"Cadence"), VALUE("Value"), POSITION("Position"), EXTENSIONS("Extensions");
+		ACTIVITIES("Activities"), ACTIVITY("Activity"), LAP("Lap"), TRACK("Track"), TRACKPOINT("Trackpoint"),
+		TIME("Time"), MAX_HEARTRATE("MaximumHeartRateBpm"), AVG_HEARTRATE("AverageHeartRateBpm"),
+		HEARTRATE("HeartRateBpm"), CALORIES("Calories"), ALTITUDE("AltitudeMeters"), DISTANCE("DistanceMeters"),
+		TOTAL_TIME("TotalTimeSeconds"), MAX_SPEED("MaximumSpeed"), CADENCE("Cadence"), VALUE("Value"),
+		POSITION("Position"), EXTENSIONS("Extensions");
 
 		private String xmlElement;
 
@@ -78,7 +78,7 @@ public class Merger {
 	}
 
 	private List<Node> getNodeList(Node parent, String nodeName) {
-		List<Node> nodes = new ArrayList<Node>();
+		List<Node> nodes = new ArrayList<>();
 		if (parent.hasChildNodes()) {
 			NodeList childNodes = parent.getChildNodes();
 			for (int index = 0; index < childNodes.getLength(); index++) {
@@ -116,10 +116,8 @@ public class Merger {
 	/**
 	 * merges the two trackpoints.
 	 * 
-	 * @param connect
-	 *            the tracklist of the connect tcx file
-	 * @param runtastic
-	 *            the tracklist of the runtastic tcx file
+	 * @param connect   the tracklist of the connect tcx file
+	 * @param runtastic the tracklist of the runtastic tcx file
 	 */
 	public void merge(NodeList connect, NodeList runtastic) {
 		int runtasticLength = runtastic.getLength();
@@ -141,10 +139,11 @@ public class Merger {
 					Node timeRuntastic = getSubNode(runtasticNode, GarminXML.TIME.getElementName());
 
 					if (timeRuntastic != null) {
-						int isPrior = checkTime(timeConnect.getTextContent(), timeRuntastic.getTextContent());
+						int isPrior = checkTime(timeConnect.getFirstChild().getNodeValue(),
+								timeRuntastic.getFirstChild().getNodeValue());
 
-						System.out.println(index + ":\t " + timeConnect.getTextContent() + "\n\t"
-								+ timeRuntastic.getTextContent());
+						System.out.println(index + ":\t " + timeConnect.getFirstChild().getNodeValue() + "\n\t"
+								+ timeRuntastic.getFirstChild().getNodeValue());
 
 						if (isPrior >= 1) {
 							// append node prior to other node
@@ -181,7 +180,7 @@ public class Merger {
 		for (int index = 0; index < nodeList.getLength(); index++) {
 			Node distance = getSubNode(nodeList.item(index), GarminXML.DISTANCE.getElementName());
 			if (distance != null) {
-				if (Double.parseDouble(distance.getTextContent()) == 0.0) {
+				if (Double.parseDouble(distance.getFirstChild().getNodeValue()) == 0.0) {
 					nodeList.item(index).removeChild(distance);
 				}
 			}
@@ -222,7 +221,7 @@ public class Merger {
 				if (!isPreciseNode1 && isPreciseNode2) {
 					adoptNode(distanceNode, distanceNode2, true);
 					return true;
-				} else if (distanceNode.getTextContent().equals(0.0)) {
+				} else if (distanceNode.getFirstChild().getNodeValue().equals(0.0)) {
 					adoptNode(distanceNode, distanceNode2, true);
 					return true;
 				}
@@ -237,10 +236,10 @@ public class Merger {
 
 	private boolean mergeTotalTime(Node totalTimeNode, Node totalTimeNode2) {
 		if (totalTimeNode2 != null) {
-			BigDecimal totalTime2 = new BigDecimal(totalTimeNode2.getTextContent());
+			BigDecimal totalTime2 = new BigDecimal(totalTimeNode2.getFirstChild().getNodeValue());
 
 			if (totalTimeNode != null) {
-				BigDecimal totalTime = new BigDecimal(totalTimeNode.getTextContent());
+				BigDecimal totalTime = new BigDecimal(totalTimeNode.getFirstChild().getNodeValue());
 
 				if (totalTime.compareTo(totalTime2) == -1) {
 					adoptNode(totalTimeNode, totalTimeNode2, true);
@@ -258,12 +257,12 @@ public class Merger {
 		if (heartrateNode2 != null) {
 			Node value = getSubNode(heartrateNode2, GarminXML.VALUE.getElementName());
 			if (value != null) {
-				BigDecimal heartrate2 = new BigDecimal(value.getTextContent());
+				BigDecimal heartrate2 = new BigDecimal(value.getFirstChild().getNodeValue());
 
 				if (heartrateNode != null) {
 					value = getSubNode(heartrateNode, GarminXML.VALUE.getElementName());
 					if (value != null) {
-						BigDecimal heartrate = new BigDecimal(value.getTextContent());
+						BigDecimal heartrate = new BigDecimal(value.getFirstChild().getNodeValue());
 
 						if (heartrate.compareTo(heartrate2) <= -1) {
 							adoptNode(heartrateNode, heartrateNode2, true);
@@ -285,9 +284,8 @@ public class Merger {
 	 * 
 	 * @param node1
 	 * @param node2
-	 * @param replace
-	 *            if true the node will be replaced, if false the node will be
-	 *            inserted before
+	 * @param replace if true the node will be replaced, if false the node will be
+	 *                inserted before
 	 */
 	private void adoptNode(Node node1, Node node2, boolean replace) {
 		if (node1 != null && node2 != null) {
@@ -323,8 +321,7 @@ public class Merger {
 	 * distance and altitude is usually more precise with GPS. GPS will have the
 	 * Position sub-node.
 	 * 
-	 * @param node
-	 *            Trackpoint node to check
+	 * @param node Trackpoint node to check
 	 * @return Returns true if the Trackpoint node has a Position node
 	 */
 	private boolean isPrecision(Node node) {
@@ -371,9 +368,9 @@ public class Merger {
 			// if node is not in the parent node
 			Node newNode = getSubNode(parent, node.getNodeName());
 			if (newNode == null) {
-				if (!node.hasChildNodes() && !node.getTextContent().trim().isEmpty()) {
+				if (!node.hasChildNodes() && !node.getFirstChild().getNodeValue().trim().isEmpty()) {
 					try {
-						if (Double.parseDouble(node.getTextContent()) != 0.0) {
+						if (Double.parseDouble(node.getFirstChild().getNodeValue()) != 0.0) {
 							adoptNode(parent, node, true);
 						}
 					} catch (NumberFormatException e) {
@@ -385,7 +382,7 @@ public class Merger {
 			} else {
 				if (newNode != null && !newNode.hasChildNodes()) {
 					try {
-						if (Double.parseDouble(newNode.getTextContent()) == 0.0) {
+						if (Double.parseDouble(newNode.getFirstChild().getNodeValue()) == 0.0) {
 							parent.getOwnerDocument().adoptNode(node);
 							parent.replaceChild(node, newNode);
 						}
@@ -478,7 +475,7 @@ public class Merger {
 			nodeString.append(attributes.item(index) + " ");
 		}
 		if (!node.hasChildNodes()) {
-			nodeString.append("> " + node.getTextContent());
+			nodeString.append("> " + node.getFirstChild().getNodeValue());
 		}
 		return nodeString.toString();
 
